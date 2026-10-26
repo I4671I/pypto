@@ -88,6 +88,7 @@ class TestOptimizationStrategy:
     def test_optimization_strategy_values(self):
         """Test that all optimization strategies exist."""
         assert ir.OptimizationStrategy.Default is not None
+        assert ir.OptimizationStrategy.CPUSVE is not None
 
 
 class TestPassManagerBasics:
@@ -99,6 +100,12 @@ class TestPassManagerBasics:
         assert pm is not None
         assert pm.strategy == ir.OptimizationStrategy.Default
         assert pm.pass_names == TENSOR_OPTIMIZATION_PASSES
+
+    def test_pass_manager_get_strategy_cpu_sve(self):
+        """CPUSVE stops at early Tile IR, even when Buffer IR is enabled."""
+        pm = ir.PassManager.get_strategy(ir.OptimizationStrategy.CPUSVE)
+        assert pm.strategy == ir.OptimizationStrategy.CPUSVE
+        assert pm.pass_names == [*TENSOR_OPTIMIZATION_PASSES[:7], "ConvertTensorToTileOps"]
 
     def test_pass_manager_rejects_unknown_strategy(self):
         """An unsupported strategy value raises instead of silently running Default."""

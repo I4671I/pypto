@@ -105,6 +105,9 @@ class OptimizationStrategy(Enum):
     """Enumeration of optimization strategies."""
 
     Default = "Default"  # Full tensor-oriented PTO pipeline
+    # Stops at early Tile IR for the Kunpeng CPU backend (pypto.ir.sve_codegen):
+    # no Ascend layout, on-chip memory planning, or AIC/AIV kernel splitting.
+    CPUSVE = "CPUSVE"
 
 
 class PassDumpLevel(Enum):
@@ -164,7 +167,7 @@ class PassManager:
         analyze_auto_scopes_for_deps: bool,
     ) -> tuple[PassFactory, ...]:
         """Build the immutable pass-factory recipe for an optimization strategy."""
-        if strategy != OptimizationStrategy.Default:
+        if strategy not in (OptimizationStrategy.Default, OptimizationStrategy.CPUSVE):
             raise ValueError(f"Unsupported optimization strategy: {strategy!r}")
         tensor_prefix_passes: tuple[PassFactory, ...] = (
             # Eliminate FunctionType.Inline functions by splicing their bodies at
@@ -181,6 +184,12 @@ class PassManager:
             passes.normalize_stmt_structure,
             passes.flatten_call_expr,
         )
+        if strategy == OptimizationStrategy.CPUSVE:
+            # The CPU backend consumes InCore functions directly, so no scope
+            # outlining is needed. Every pass after ConvertTensorToTileOps in
+            # Default encodes Ascend layout, storage, or core-split decisions
+            # that a CPU C kernel has no use for.
+            return (*tensor_prefix_passes, passes.convert_tensor_to_tile_ops)
         tensor_only_passes: tuple[PassFactory, ...] = (
             passes.outline_hierarchy_scopes,
             passes.outline_graph_scopes,
@@ -408,7 +417,9 @@ class PassManager:
             if self._construction_buffer_ir and pass_obj.get_name() == "AllocateMemoryAddr":
                 self._pipeline.add_pass(passes.verify_tile_storage(allocated=True))
 
-        if self._construction_buffer_ir:
+        # Buffer IR replaces planned on-chip Tile storage. CPUSVE never plans
+        # on-chip storage, and its codegen reads Tile ops directly.
+        if self._construction_buffer_ir and strategy != OptimizationStrategy.CPUSVE:
             self._pipeline.add_pass(passes.lower_tile_to_buffer())
 
     @property

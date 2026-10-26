@@ -17,7 +17,7 @@ Framework for organizing and executing IR transformation passes on Programs with
 - **Property Tracking**: Passes declare required, produced, and invalidated properties
 - **Instrumentation**: PassContext holds PassInstruments that run before/after each pass
 - **Runtime Verification**: VerificationInstrument checks properties against actual IR
-- **Strategy-based Pipelines**: Pre-configured optimization levels (`Default`)
+- **Strategy-based Pipelines**: Pre-configured optimization levels (`Default`, `CPUSVE`)
 - **Immutable Transformations**: Return new IR nodes, don't modify in place
 
 ## IRProperty System
@@ -561,6 +561,11 @@ With `enable_buffer_ir=True`, the final [LowerTileToBuffer](55-lower_tile_to_buf
 pass runs after `MaterializeValidShapeSymbols` and replaces planned device Tile
 storage with verified explicit Buffer operations. This migration option must
 remain unchanged between constructing and running the pass manager.
+
+`CPUSVE` runs the `Default` prefix passes (`InlineFunctions` through
+`FlattenCallExpr`) followed by `ConvertTensorToTileOps`, and stops at early Tile
+IR for the [SVE codegen](../codegen/03-sve_codegen.md). It never appends
+`LowerTileToBuffer`, even when Buffer IR is enabled.
 
 ### Using PassPipeline Directly
 

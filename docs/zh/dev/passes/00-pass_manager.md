@@ -17,7 +17,7 @@
 - **属性跟踪**：Pass 声明所需、产生和失效的属性
 - **插桩**：PassContext 持有 PassInstrument，在每个 Pass 执行前/后运行
 - **运行时验证**：VerificationInstrument 根据实际 IR 检查属性
-- **基于策略的流水线**：预配置的优化级别（`Default`）
+- **基于策略的流水线**：预配置的优化级别（`Default`、`CPUSVE`）
 - **不可变变换**：返回新的 IR 节点，不就地修改
 
 ## IRProperty 系统
@@ -546,6 +546,10 @@ backend 注册的 layout 元数据修复受约束的逐元素 tile 操作。对�
 可观察的副作用。该 DCE 步骤会递归进入
 `ForStmt`/`IfStmt`/`WhileStmt`/`ScopeStmt` 的 body，以便同时清理嵌套
 块中的死标量。
+
+`CPUSVE` 先运行 `Default` 的前缀 Pass（`InlineFunctions` 到 `FlattenCallExpr`），再运行
+`ConvertTensorToTileOps`，然后停在早期 Tile IR，供 [SVE codegen](../codegen/03-sve_codegen.md) 使用。
+即使启用了 Buffer IR，它也不会追加 `LowerTileToBuffer`。
 
 ### 直接使用 PassPipeline
 
